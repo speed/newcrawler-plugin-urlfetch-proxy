@@ -14,6 +14,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.soso.plugin.UrlFetchPlugin;
+import com.soso.plugin.bo.UrlFetchPluginBo;
 
 public class UrlFetchPluginService implements UrlFetchPlugin{
 	
@@ -40,16 +41,28 @@ public class UrlFetchPluginService implements UrlFetchPlugin{
 		//urlFetchPluginService.execute(properties, crawlUrl, method, cookie, userAgent, encoding);
 		
 		crawlUrl="http://www.newcrawler.com/header"; 
-		Map<String, Object> map =urlFetchPluginService.execute(properties, headers, crawlUrl, method, cookie, userAgent, encoding);
+		UrlFetchPluginBo urlFetchPluginBo1=new UrlFetchPluginBo(properties, headers, crawlUrl, method, cookie, userAgent, encoding);
+		
+		Map<String, Object> map =urlFetchPluginService.execute(urlFetchPluginBo1);
 		System.out.println(map.get(RETURN_DATA_KEY_CONTENT));
 		
 		crawlUrl="http://www.google.com"; 
-		map =urlFetchPluginService.execute(properties, headers, crawlUrl, method, cookie, userAgent, encoding);
+		UrlFetchPluginBo urlFetchPluginBo=new UrlFetchPluginBo(properties, headers, crawlUrl, method, cookie, userAgent, encoding);
+		
+		map =urlFetchPluginService.execute(urlFetchPluginBo);
 		System.out.println(map.get(RETURN_DATA_KEY_CONTENT));
 	}
 	
 	@Override
-	public Map<String, Object> execute(Map<String, String> properties, Map<String, String> headers, String crawlUrl, String method, String cookie, String userAgent, String encoding) {
+	public Map<String, Object> execute(UrlFetchPluginBo urlFetchPluginBo) {
+		Map<String, String> properties=urlFetchPluginBo.getProperties();
+		Map<String, String> headers=urlFetchPluginBo.getHeaders();
+		String crawlUrl=urlFetchPluginBo.getCrawlUrl();
+		String method=urlFetchPluginBo.getMethod();
+		String cookie=urlFetchPluginBo.getCookie();
+		String userAgent=urlFetchPluginBo.getUserAgent();
+		String encoding=urlFetchPluginBo.getEncoding();
+		
 		String proxyIP=null;
 		int proxyPort=-1;
 		String proxyUsername=null;
