@@ -2,11 +2,13 @@ package com.newcrawler.plugin.urlfetch.proxy;
 
 import java.io.IOException;
 import java.net.Authenticator;
+import java.net.CookieManager;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.SocketException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
@@ -14,6 +16,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.soso.plugin.UrlFetchPlugin;
+import com.soso.plugin.bo.HttpCookieBo;
 import com.soso.plugin.bo.UrlFetchPluginBo;
 
 public class UrlFetchPluginService implements UrlFetchPlugin{
@@ -41,13 +44,14 @@ public class UrlFetchPluginService implements UrlFetchPlugin{
 		//urlFetchPluginService.execute(properties, crawlUrl, method, cookie, userAgent, encoding);
 		
 		crawlUrl="http://www.newcrawler.com/header"; 
-		UrlFetchPluginBo urlFetchPluginBo1=new UrlFetchPluginBo(properties, headers, crawlUrl, method, cookie, userAgent, encoding);
+		List<HttpCookieBo> cookieList=null;
+		UrlFetchPluginBo urlFetchPluginBo1=new UrlFetchPluginBo(properties, headers, crawlUrl, method, cookieList, userAgent, encoding);
 		
 		Map<String, Object> map =urlFetchPluginService.execute(urlFetchPluginBo1);
 		System.out.println(map.get(RETURN_DATA_KEY_CONTENT));
 		
 		crawlUrl="http://www.google.com"; 
-		UrlFetchPluginBo urlFetchPluginBo=new UrlFetchPluginBo(properties, headers, crawlUrl, method, cookie, userAgent, encoding);
+		UrlFetchPluginBo urlFetchPluginBo=new UrlFetchPluginBo(properties, headers, crawlUrl, method, cookieList, userAgent, encoding);
 		
 		map =urlFetchPluginService.execute(urlFetchPluginBo);
 		System.out.println(map.get(RETURN_DATA_KEY_CONTENT));
@@ -59,10 +63,10 @@ public class UrlFetchPluginService implements UrlFetchPlugin{
 		Map<String, String> headers=urlFetchPluginBo.getHeaders();
 		String crawlUrl=urlFetchPluginBo.getCrawlUrl();
 		String method=urlFetchPluginBo.getMethod();
-		String cookie=urlFetchPluginBo.getCookie();
 		String userAgent=urlFetchPluginBo.getUserAgent();
 		String encoding=urlFetchPluginBo.getEncoding();
 		
+		List<HttpCookieBo> cookieList=urlFetchPluginBo.getCookieList();
 		String proxyIP=null;
 		int proxyPort=-1;
 		String proxyUsername=null;
@@ -92,8 +96,12 @@ public class UrlFetchPluginService implements UrlFetchPlugin{
 		if(headers==null){
 			headers = new HashMap<String, String>();
 		}
-		if(StringUtils.isNoneBlank(cookie)){
-			headers.put("Cookie", cookie);
+		
+		if(cookieList!=null && !cookieList.isEmpty()){
+			String cookie=getCookies(cookieList);
+			if(StringUtils.isNoneBlank(cookie)){
+				headers.put("Cookie", cookie);
+			}
 		}
 		if(StringUtils.isNoneBlank(userAgent)){
 			headers.put("User-Agent", userAgent);
@@ -107,6 +115,14 @@ public class UrlFetchPluginService implements UrlFetchPlugin{
 			logger.error(e);
 		}
 		return map;
+	}
+
+	private final String getCookies(List<HttpCookieBo> cookieList){
+		String cookie="";
+		for(HttpCookieBo httpCookie:cookieList){
+			cookie+=httpCookie.getName()+"="+httpCookie.getValue()+";";
+		}
+		return cookie;
 	}
 	
 	private Map<String, Object> read(String proxyIP, int proxyPort, final String proxyUsername, final String proxyPassword, final String proxyType, Map<String, String> headers, String crawlUrl, String method, String encoding) throws IOException{
@@ -128,13 +144,23 @@ public class UrlFetchPluginService implements UrlFetchPlugin{
 	    	cookie=headers.get("Cookie");
 	    	headers.remove("Cookie");
 	    }
-		HttpResponse httpResponse = HttpRequester.sendGet(crawlUrl, encoding, headers, cookie, proxy);
+	    CookieManager cookieManager=new CookieManager();
+	    RequestBo requestBo=new RequestBo(cookieManager.getCookieStore());
+		requestBo.setContentEncoding(encoding);
+		requestBo.setUrlString(crawlUrl);
+		requestBo.setPropertys(headers);
+		requestBo.setCookieList(null);
+		requestBo.setRedirectsTimes(15);
+		requestBo.setReadTimeout(10000);
+		requestBo.setProxy(proxy);
+			
+		HttpResponse httpResponse = HttpRequester.sendGet(requestBo);
 		
 		Map<String, Object> map = new HashMap<String, Object>();
-		map.put(RETURN_DATA_KEY_COOKIES, httpResponse.getHeaderMap());
 		map.put(RETURN_DATA_KEY_CONTENT, httpResponse.getContent());
 		map.put(RETURN_DATA_KEY_REALURL, httpResponse.getRealURL());
-		map.put(RETURN_DATA_KEY_HEADERS, httpResponse.getHeaderMap());
+		map.put(RETURN_DATA_KEY_COOKIES, httpResponse.getCookieList());
+		map.put(RETURN_DATA_KEY_ENCODING, httpResponse.getContentEncoding());
 		return map;
 	}
 
